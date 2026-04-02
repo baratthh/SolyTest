@@ -367,6 +367,7 @@ A model has **adverse impact** if AIR < 0.80 for any protected group (the EEOC 4
 ### 9.1 Artifact Inventory
 
 | Artifact | Filename | Format | Location |
+|---|---|---|---|
 | This report | sample_doc_simucredit.md | Markdown | /docs/ |
 
 ### 9.2 Environment and Dependencies
