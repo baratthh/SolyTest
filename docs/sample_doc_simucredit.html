@@ -1,0 +1,1210 @@
+<h1 id="simucredit-decisioning-model">SimuCredit Decisioning Model</h1>
+<h2 id="model-development-and-initial-validation-report">Model
+Development and Initial Validation Report</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<tbody>
+<tr class="odd">
+<td><strong>Document ID</strong></td>
+<td>SDM-2026-LR-01</td>
+</tr>
+<tr class="even">
+<td><strong>Version</strong></td>
+<td>1.0</td>
+</tr>
+<tr class="odd">
+<td><strong>Date</strong></td>
+<td>April 02, 2026</td>
+</tr>
+<tr class="even">
+<td><strong>Prepared By</strong></td>
+<td>Quantitative Modeling Group — Model Risk &amp; Analytics</td>
+</tr>
+<tr class="odd">
+<td><strong>Classification</strong></td>
+<td>Internal — Model Risk Management</td>
+</tr>
+<tr class="even">
+<td><strong>Regulatory Framework</strong></td>
+<td>SR 11-7 | ECOA / Reg B | OCC 2011-12 | EEOC 4/5ths Rule</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="executive-summary">1. Executive Summary</h2>
+<p>This report documents the development and initial validation of the
+<strong>SimuCredit Decisioning Model (SDM-2026-LR-01)</strong>, a binary
+classification model designed to support credit approval decisions at
+the point of application. The model outputs a probability of loan denial
+for each applicant; a decision threshold of <strong>p = 0.50</strong>
+converts this to a binary approve/deny outcome.</p>
+<p>The model was developed under the institution’s Model Risk Management
+Policy and the supervisory guidance set forth in <strong>SR
+11-7</strong> (<em>Guidance on Model Risk Management</em>, Federal
+Reserve, 2011). Independent validation is required prior to any
+production deployment.</p>
+<h3 id="performance-summary">1.1 Performance Summary</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Metric</th>
+<th>Train</th>
+<th>Test</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>AUC (ROC)</td>
+<td>0.8100</td>
+<td>0.8110</td>
+<td>✅ Acceptable (&gt; 0.70)</td>
+</tr>
+<tr class="even">
+<td>Gini Coefficient</td>
+<td>0.6199</td>
+<td>0.6220</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td>KS Statistic</td>
+<td>—</td>
+<td>0.5046</td>
+<td>✅ Acceptable (&gt; 0.30)</td>
+</tr>
+<tr class="even">
+<td>Hosmer-Lemeshow p</td>
+<td>—</td>
+<td>0.2410</td>
+<td>✅ Acceptable fit (p &gt; 0.05)</td>
+</tr>
+<tr class="odd">
+<td>K-Fold CV AUC (k=5)</td>
+<td>0.8057 ± 0.0706</td>
+<td>—</td>
+<td>⚠️ Unstable</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fair-lending-summary">1.2 Fair Lending Summary</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Protected Attribute</th>
+<th>AIR (Approval Rate Ratio)</th>
+<th>EEOC Threshold</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Gender (Female vs. Male)</td>
+<td>0.9382</td>
+<td>≥ 0.80</td>
+<td>✅ Pass</td>
+</tr>
+<tr class="even">
+<td>Race (Minority vs. Majority)</td>
+<td>0.7200</td>
+<td>≥ 0.80</td>
+<td>❌ FAIL — Adverse Impact Detected</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ <strong>Critical Finding:</strong> Race AIR falls below the EEOC
+4/5ths threshold. Mitigation analysis is required before deployment. See
+Section 7.</p>
+</blockquote>
+<hr />
+<h2 id="data-description">2. Data Description</h2>
+<h3 id="dataset-overview">2.1 Dataset Overview</h3>
+<p>The dataset (<em>SimuCredit_v2</em>) contains <strong>682 anonymized
+consumer credit applications</strong> drawn from the institution’s
+originations portfolio (2021–2023). Records were extracted from the loan
+origination system (LOS) and processed through the institution’s
+standard data quality pipeline.</p>
+<table>
+<thead>
+<tr class="header">
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Total Observations</td>
+<td>682</td>
+</tr>
+<tr class="even">
+<td>Model Features</td>
+<td>7 (all numerical)</td>
+</tr>
+<tr class="odd">
+<td>Protected Attributes</td>
+<td>2 (Gender, Race — excluded from model inputs)</td>
+</tr>
+<tr class="even">
+<td>Approved (Status = 0)</td>
+<td>528 (77.4%)</td>
+</tr>
+<tr class="odd">
+<td>Denied (Status = 1)</td>
+<td>154 (22.6%)</td>
+</tr>
+<tr class="even">
+<td>Training Set</td>
+<td>545 observations (80%, stratified)</td>
+</tr>
+<tr class="odd">
+<td>Test Set</td>
+<td>137 observations (20%, stratified)</td>
+</tr>
+<tr class="even">
+<td>Observation Period</td>
+<td>2021 Q1 – 2023 Q4</td>
+</tr>
+<tr class="odd">
+<td>Missing Values</td>
+<td>&lt; 3% across all features (imputed — see §4.2)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="feature-definitions">2.2 Feature Definitions</h3>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Feature</th>
+<th>Type</th>
+<th>Observed Range</th>
+<th>Business Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Mortgage</td>
+<td>Continuous (USD)</td>
+<td>[0, 600,000]</td>
+<td>Outstanding mortgage balance at time of application</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Balance</td>
+<td>Continuous (USD)</td>
+<td>[0, 50,000]</td>
+<td>Total revolving credit balance across all open accounts</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>Amount Past Due</td>
+<td>Continuous (USD)</td>
+<td>[0, 5,000]</td>
+<td>Total amount currently past due across all accounts</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>Delinquency</td>
+<td>Ordinal {0,1,2,3}</td>
+<td>0–3</td>
+<td>Maximum delinquency cycle in the past 24 months</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>Inquiry</td>
+<td>Count</td>
+<td>0–5</td>
+<td>Hard credit inquiries in the past 12 months</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>Open Trade</td>
+<td>Count</td>
+<td>0–14</td>
+<td>Number of currently open trade lines</td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td>Utilization</td>
+<td>Ratio [0,1]</td>
+<td>0.00–1.00</td>
+<td>Aggregate credit utilization (balance / credit limit)</td>
+</tr>
+</tbody>
+</table>
+<h3
+id="protected-attributes-excluded-from-model-fairness-audit-only">2.3
+Protected Attributes (Excluded from Model — Fairness Audit Only)</h3>
+<p>The following demographic fields are present in the dataset but are
+<strong>explicitly excluded from all model training steps</strong> per
+ECOA / Regulation B. They are retained in a separate dataframe used only
+for post-hoc adverse impact analysis.</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Attribute</th>
+<th>Encoding</th>
+<th>Protected Group</th>
+<th>Reference Group</th>
+<th>Proportion</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Gender</td>
+<td>Binary 0/1</td>
+<td>Female (1)</td>
+<td>Male (0)</td>
+<td>45.2% Female / 54.8% Male</td>
+</tr>
+<tr class="even">
+<td>Race</td>
+<td>Binary 0/1</td>
+<td>Minority (1)</td>
+<td>Majority (0)</td>
+<td>28.0% Minority / 72.0% Majority</td>
+</tr>
+</tbody>
+</table>
+<h3 id="class-distribution-and-imbalance">2.4 Class Distribution and
+Imbalance</h3>
+<p>The dataset exhibits significant <strong>class imbalance</strong>,
+with denial events comprising only <strong>22.6%</strong> of all
+observations. This is consistent with the expected denial rate for a
+prime consumer credit portfolio.</p>
+<pre><code>  Status Distribution:
+    Approved (0): ██████████████████████████████             528  (77.4%)
+    Denied   (1): █████████                                  154  (22.6%)
+    Total:        682</code></pre>
+<blockquote>
+<p><strong>Note for Validation Team:</strong> Class imbalance was
+handled via stratified splitting. No SMOTE or oversampling was applied.
+The default threshold of p=0.50 may be suboptimal — threshold
+sensitivity analysis is required during validation.</p>
+</blockquote>
+<hr />
+<h2 id="regulatory-and-governance-context">3. Regulatory and Governance
+Context</h2>
+<h3 id="applicable-regulatory-framework">3.1 Applicable Regulatory
+Framework</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Regulation</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>SR 11-7</strong> (Federal Reserve, 2011)</td>
+<td>Primary model risk management framework. Mandates conceptual
+soundness review, ongoing monitoring, and independent validation for all
+models used in material decisions.</td>
+</tr>
+<tr class="even">
+<td><strong>ECOA / Regulation B</strong></td>
+<td>Prohibits credit discrimination on the basis of race, color,
+religion, national origin, sex, marital status, or age. Adverse action
+notices required for all denied applications.</td>
+</tr>
+<tr class="odd">
+<td><strong>OCC 2011-12</strong></td>
+<td>Parallel OCC model risk guidance. Requires validation of all models
+used in credit decisioning, with documentation of limitations and
+assumptions.</td>
+</tr>
+<tr class="even">
+<td><strong>EEOC 4/5ths Rule</strong></td>
+<td>Adverse Impact Ratio (AIR) ≥ 0.80 required for all protected groups.
+AIR = (Approval Rate of Protected Group) / (Approval Rate of Reference
+Group).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="model-risk-tier-classification">3.2 Model Risk Tier
+Classification</h3>
+<p>This model is classified as <strong>Tier 1 (High Risk)</strong> under
+the Model Risk Policy due to its direct, automated impact on credit
+decisions affecting protected classes.</p>
+<p>Tier 1 requirements: - Full independent validation before production
+deployment - Annual model performance review with documented findings -
+Quarterly PSI-based monitoring reports - Fair lending audit at each
+model update or threshold change - Model Risk Committee (MRC) sign-off
+required for deployment</p>
+<hr />
+<h2 id="model-development-methodology">4. Model Development
+Methodology</h2>
+<h3 id="algorithm-selection-rationale">4.1 Algorithm Selection
+Rationale</h3>
+<p>Logistic Regression was selected after evaluating four candidate
+algorithms:</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Algorithm</th>
+<th>Train AUC</th>
+<th>Test AUC</th>
+<th>Interpretability</th>
+<th>Selected</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Logistic Regression</td>
+<td>0.8100</td>
+<td>0.8110</td>
+<td>High (coefficient table)</td>
+<td>✅ Champion</td>
+</tr>
+<tr class="even">
+<td>Random Forest</td>
+<td>0.8400</td>
+<td>0.8210</td>
+<td>Low (black box)</td>
+<td>Challenger</td>
+</tr>
+<tr class="odd">
+<td>XGBoost</td>
+<td>0.8500</td>
+<td>0.8160</td>
+<td>Low</td>
+<td>Rejected</td>
+</tr>
+<tr class="even">
+<td>Decision Tree (depth=4)</td>
+<td>0.7600</td>
+<td>0.7510</td>
+<td>High</td>
+<td>Rejected (lower AUC)</td>
+</tr>
+</tbody>
+</table>
+<p>Logistic Regression was selected based on: 1. <strong>SR 11-7
+interpretability requirement</strong> — coefficients provide direct,
+auditable log-odds mapping 2. <strong>Regulatory precedent</strong> —
+industry-standard for consumer credit under ECOA 3. <strong>Comparable
+performance</strong> — AUC within acceptable range of the RF
+challenger</p>
+<h3 id="preprocessing-pipeline">4.2 Preprocessing Pipeline</h3>
+<p>The following pipeline is applied identically to training data and
+all future scoring data. Parameters are fitted <strong>exclusively on
+training data</strong> and frozen before any test-set evaluation.</p>
+<pre><code>Pipeline:
+  Step 1: Missing Value Imputation
+    Method:  SimpleImputer(strategy=&#39;median&#39;)
+    Applied: All 7 feature columns
+    Fit on:  Training data only. Frozen for scoring.
+
+  Step 2: Feature Scaling
+    Method:  StandardScaler()  →  xʼ = (x − μ) / σ
+    Applied: All 7 feature columns (post-imputation)
+    Fit on:  Training data only. Frozen for scoring.
+
+  Step 3: Protected Attribute Removal
+    Gender and Race are dropped BEFORE model training.
+    They are retained in a separate protected_data.csv for fairness audit.</code></pre>
+<h3 id="train-test-split">4.3 Train / Test Split</h3>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>X_train, X_test, y_train, y_test <span class="op">=</span> train_test_split(</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    X, y,</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    test_size    <span class="op">=</span> <span class="fl">0.20</span>,</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    stratify     <span class="op">=</span> y,       <span class="co"># preserves 6.5% denial rate in both splits</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    random_state <span class="op">=</span> <span class="dv">42</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Training: 545 rows  |  Test: 137 rows</span></span></code></pre></div>
+<h3 id="feature-selection-rcit-independence-screening">4.4 Feature
+Selection — RCIT Independence Screening</h3>
+<p>A Randomized Conditional Independence Test (RCIT) was applied to
+screen features for conditional dependence on the target variable
+(Status). All seven features were retained (p &lt; 0.05).</p>
+<table>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>RCIT p-value</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Mortgage</td>
+<td>0.0030</td>
+<td>✅ Retained (p &lt; 0.05)</td>
+</tr>
+<tr class="even">
+<td>Balance</td>
+<td>0.0110</td>
+<td>✅ Retained (p &lt; 0.05)</td>
+</tr>
+<tr class="odd">
+<td>Amount Past Due</td>
+<td>0.0004</td>
+<td>✅ Retained (p &lt; 0.05)</td>
+</tr>
+<tr class="even">
+<td>Delinquency</td>
+<td>0.0001</td>
+<td>✅ Retained (p &lt; 0.05)</td>
+</tr>
+<tr class="odd">
+<td>Inquiry</td>
+<td>0.0280</td>
+<td>✅ Retained (p &lt; 0.05)</td>
+</tr>
+<tr class="even">
+<td>Open Trade</td>
+<td>0.0420</td>
+<td>✅ Retained (p &lt; 0.05)</td>
+</tr>
+<tr class="odd">
+<td>Utilization</td>
+<td>0.0001</td>
+<td>✅ Retained (p &lt; 0.05)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="model-specification-logistic-regression">4.5 Model Specification
+— Logistic Regression</h3>
+<p>The model is specified as a binary logistic regression:</p>
+<p><span class="math display">$$
+\log\left(\frac{P(\text{Denial})}{1 - P(\text{Denial})}\right) = \beta_0
++ \sum_{j=1}^{7} \beta_j \tilde{x}_j
+$$</span></p>
+<p>where <span
+class="math inline"><em>x̃</em><sub><em>j</em></sub></span> denotes the
+standardized (zero-mean, unit-variance) version of feature <span
+class="math inline"><em>x</em><sub><em>j</em></sub></span>, and</p>
+<p><span class="math display">$$
+P(\text{Denial} \mid \mathbf{x}) = \sigma\!\left(\beta_0 +
+\boldsymbol{\beta}^\top \tilde{\mathbf{x}}\right) = \frac{1}{1 +
+e^{-(\beta_0 + \boldsymbol{\beta}^\top \tilde{\mathbf{x}})}}
+$$</span></p>
+<p><strong>Estimated Coefficients (on standardized features, L2
+regularization, C=1.0):</strong></p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>β̂ (Std. Scale)</th>
+<th>Approx. Std. Error</th>
+<th>Odds Ratio (e^β̂)</th>
+<th>Direction</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Mortgage</td>
+<td>+0.0373</td>
+<td>0.0036</td>
+<td>1.0380</td>
+<td>↑ Higher → more likely denied</td>
+</tr>
+<tr class="even">
+<td>Balance</td>
+<td>+0.2752</td>
+<td>0.0312</td>
+<td>1.3167</td>
+<td>↑ Higher → more likely denied</td>
+</tr>
+<tr class="odd">
+<td>Amount Past Due</td>
+<td>+0.7340</td>
+<td>0.0713</td>
+<td>2.0834</td>
+<td>↑ Higher → more likely denied</td>
+</tr>
+<tr class="even">
+<td>Delinquency</td>
+<td>+0.8104</td>
+<td>0.1025</td>
+<td>2.2488</td>
+<td>↑ Higher → more likely denied</td>
+</tr>
+<tr class="odd">
+<td>Inquiry</td>
+<td>+0.5871</td>
+<td>0.0716</td>
+<td>1.7988</td>
+<td>↑ Higher → more likely denied</td>
+</tr>
+<tr class="even">
+<td>Open Trade</td>
+<td>-0.0880</td>
+<td>0.0114</td>
+<td>0.9157</td>
+<td>↓ Higher → less likely denied</td>
+</tr>
+<tr class="odd">
+<td>Utilization</td>
+<td>+0.4454</td>
+<td>0.0770</td>
+<td>1.5612</td>
+<td>↑ Higher → more likely denied</td>
+</tr>
+<tr class="even">
+<td>Intercept (β₀)</td>
+<td>-1.5319</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interpretation example:</strong> An applicant one standard
+deviation above the mean Utilization increases their log-odds of denial
+by +0.4454, corresponding to an odds multiplier of 1.561×.</p>
+<p><strong>Hyperparameters:</strong></p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Value</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Penalty</td>
+<td>L2 (Ridge)</td>
+<td>Prevents overfitting; standard for logistic regression</td>
+</tr>
+<tr class="even">
+<td>C (inverse regularization)</td>
+<td>1.0</td>
+<td>Default; no strong prior on coefficient magnitude</td>
+</tr>
+<tr class="odd">
+<td>Solver</td>
+<td>lbfgs</td>
+<td>Efficient for small-to-medium datasets; supports L2</td>
+</tr>
+<tr class="even">
+<td>Max iterations</td>
+<td>1,000</td>
+<td>Convergence confirmed (loss &lt; 1e-4)</td>
+</tr>
+<tr class="odd">
+<td>Class weight</td>
+<td>None</td>
+<td>No resampling; stratified split preserves class balance</td>
+</tr>
+<tr class="even">
+<td>Threshold</td>
+<td>0.50</td>
+<td>Default; sensitivity analysis recommended by validation team</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="model-performance-evaluation">5. Model Performance
+Evaluation</h2>
+<h3 id="discriminatory-power">5.1 Discriminatory Power</h3>
+<p>All metrics computed on the held-out test set (n=137) unless
+stated.</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Metric</th>
+<th>Train Set</th>
+<th>Test Set</th>
+<th>Gap</th>
+<th>Benchmark</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>AUC (area under ROC curve)</td>
+<td>0.8100</td>
+<td>0.8110</td>
+<td>-0.0011</td>
+<td>&gt; 0.70 = acceptable</td>
+</tr>
+<tr class="even">
+<td>Gini Coefficient (2·AUC−1)</td>
+<td>0.6199</td>
+<td>0.6220</td>
+<td>-0.0021</td>
+<td>&gt; 0.40 = acceptable</td>
+</tr>
+<tr class="odd">
+<td>KS Statistic</td>
+<td>—</td>
+<td>0.5046</td>
+<td>—</td>
+<td>&gt; 0.30 = acceptable</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Train/Test AUC gap</strong> of -0.0011 (-0.1%) is within
+acceptable range (&lt; 5% relative gap). Validation team should
+independently verify using k-fold CV.</p>
+</blockquote>
+<h3 id="calibration-metrics">5.2 Calibration Metrics</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Metric</th>
+<th>Value</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>F1 Score</td>
+<td>0.5098</td>
+<td>Harmonic mean of precision and recall</td>
+</tr>
+<tr class="even">
+<td>Precision</td>
+<td>0.6500</td>
+<td>Of predicted denials, fraction that are true denials</td>
+</tr>
+<tr class="odd">
+<td>Recall (Sensitivity)</td>
+<td>0.4194</td>
+<td>Of actual denials, fraction correctly flagged</td>
+</tr>
+<tr class="even">
+<td>Specificity</td>
+<td>0.9340</td>
+<td>Of actual approvals, fraction correctly approved</td>
+</tr>
+</tbody>
+</table>
+<h3 id="confusion-matrix-test-set-threshold-0.50">5.3 Confusion Matrix
+(Test Set, threshold = 0.50)</h3>
+<pre><code>                        PREDICTED
+                   Approve        Deny
+          ┌─────────────────────────────┐
+  ACTUAL  │ Approve     99             7 │
+          │ Deny        18            13 │
+          └─────────────────────────────┘
+  True Negative Rate (Specificity):  0.9340
+  True Positive Rate (Sensitivity):  0.4194</code></pre>
+<h3 id="hosmer-lemeshow-goodness-of-fit-test">5.4 Hosmer-Lemeshow
+Goodness-of-Fit Test</h3>
+<p>The Hosmer-Lemeshow test partitions applicants into deciles by
+predicted probability and compares observed vs. expected denial
+counts:</p>
+<p><span class="math display">$$
+\chi^2_{HL} = \sum_{g=1}^{G} \frac{(O_g - E_g)^2}{E_g(1 - E_g/n_g)}
+$$</span></p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Statistic</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>χ² (Hosmer-Lemeshow)</td>
+<td>10.3548</td>
+</tr>
+<tr class="even">
+<td>Degrees of Freedom</td>
+<td>8 (G − 2 = 10 − 2)</td>
+</tr>
+<tr class="odd">
+<td>p-value</td>
+<td>0.2410</td>
+</tr>
+<tr class="even">
+<td>H₀</td>
+<td>No significant difference between observed and expected
+frequencies</td>
+</tr>
+<tr class="odd">
+<td>Decision</td>
+<td>Fail to reject H₀ — model fit is acceptable</td>
+</tr>
+</tbody>
+</table>
+<h3 id="k-fold-cross-validation-k5-stratified">5.5 K-Fold
+Cross-Validation (k=5, Stratified)</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Fold</th>
+<th>AUC</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Fold 1</td>
+<td>0.8904</td>
+</tr>
+<tr class="even">
+<td>Fold 2</td>
+<td>0.7048</td>
+</tr>
+<tr class="odd">
+<td>Fold 3</td>
+<td>0.7988</td>
+</tr>
+<tr class="even">
+<td>Fold 4</td>
+<td>0.7573</td>
+</tr>
+<tr class="odd">
+<td>Fold 5</td>
+<td>0.8774</td>
+</tr>
+<tr class="even">
+<td><strong>Mean</strong></td>
+<td><strong>0.8057</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>Std Dev</strong></td>
+<td><strong>0.0706</strong></td>
+</tr>
+<tr class="even">
+<td><strong>95% CI</strong></td>
+<td><strong>[0.6675, 0.9440]</strong></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Standard deviation of 0.0706 indicates fold-to-fold instability (σ ≥
+0.05) — investigate data heterogeneity.</p>
+</blockquote>
+<hr />
+<h2 id="multicollinearity-analysis-variance-inflation-factors">6.
+Multicollinearity Analysis — Variance Inflation Factors</h2>
+<p>VIF is computed to detect problematic linear dependencies among
+predictors. High VIF inflates coefficient standard errors and reduces
+interpretability.</p>
+<p><span class="math display">$$
+\text{VIF}_j = \frac{1}{1 - R_j^2}
+$$</span></p>
+<p>where <span
+class="math inline"><em>R</em><sub><em>j</em></sub><sup>2</sup></span>
+is the coefficient of determination from regressing feature <span
+class="math inline"><em>j</em></span> on all other features.</p>
+<table>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>VIF</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Mortgage</td>
+<td>1.013</td>
+<td>✅ No concern</td>
+</tr>
+<tr class="even">
+<td>Balance</td>
+<td>1.008</td>
+<td>✅ No concern</td>
+</tr>
+<tr class="odd">
+<td>Amount Past Due</td>
+<td>1.010</td>
+<td>✅ No concern</td>
+</tr>
+<tr class="even">
+<td>Delinquency</td>
+<td>1.018</td>
+<td>✅ No concern</td>
+</tr>
+<tr class="odd">
+<td>Inquiry</td>
+<td>1.004</td>
+<td>✅ No concern</td>
+</tr>
+<tr class="even">
+<td>Open Trade</td>
+<td>1.017</td>
+<td>✅ No concern</td>
+</tr>
+<tr class="odd">
+<td>Utilization</td>
+<td>1.004</td>
+<td>✅ No concern</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>All VIF values are within acceptable bounds (&lt; 5). No
+multicollinearity remediation required. Coefficient estimates are
+stable.</p>
+</blockquote>
+<hr />
+<h2 id="fair-lending-analysis-adverse-impact-assessment">7. Fair Lending
+Analysis — Adverse Impact Assessment</h2>
+<h3 id="methodology">7.1 Methodology</h3>
+<p>Adverse Impact Ratio (AIR) is computed per the EEOC Uniform
+Guidelines on Employee Selection Procedures (29 C.F.R. § 1607), adapted
+to credit decisioning per Interagency Fair Lending Examination
+Procedures (CFPB / OCC / FDIC, 2009):</p>
+<p><span class="math display">$$
+\text{AIR} = \frac{P(\text{Approved} \mid \text{Protected
+Group})}{P(\text{Approved} \mid \text{Reference Group})}
+$$</span></p>
+<p>A model has <strong>adverse impact</strong> if AIR &lt; 0.80 for any
+protected group (the EEOC 4/5ths, or 80%, rule).</p>
+<h3 id="adverse-impact-results">7.2 Adverse Impact Results</h3>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Protected Attribute</th>
+<th>Protected Group</th>
+<th>Reference Group</th>
+<th>Approval Rate (Protected)</th>
+<th>Approval Rate (Reference)</th>
+<th>AIR</th>
+<th>Pass?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Gender</td>
+<td>Female</td>
+<td>Male</td>
+<td>0.746</td>
+<td>0.795</td>
+<td>0.9382</td>
+<td>✅ Pass</td>
+</tr>
+<tr class="even">
+<td>Race</td>
+<td>Minority</td>
+<td>Majority</td>
+<td>0.600</td>
+<td>0.833</td>
+<td>0.7200</td>
+<td>❌ FAIL</td>
+</tr>
+</tbody>
+</table>
+<h3 id="findings-and-required-actions">7.3 Findings and Required
+Actions</h3>
+<p><strong>Gender:</strong> AIR = 0.9382 ≥ 0.80. No adverse impact at
+the current threshold. Continued monitoring required.</p>
+<p><strong>Race:</strong> AIR = 0.7200 &lt; 0.80. <strong>Adverse impact
+detected.</strong> The following remediation steps are required: 1.
+Slicing fairness analysis to identify which feature segments drive the
+disparity 2. Threshold adjustment analysis — determine whether adjusting
+the decision threshold improves AIR without unacceptable accuracy loss
+3. Feature binning mitigation — evaluate whether binning proxy features
+reduces disparate impact 4. If mitigation is insufficient: escalate to
+Model Risk Committee and Legal for pre-deployment regulatory review</p>
+<blockquote>
+<p><strong>Validation Requirement:</strong> The independent validation
+team must re-run this analysis on the rebuilt model, perform slicing
+fairness analysis by feature segment, and document all mitigation steps
+taken.</p>
+</blockquote>
+<hr />
+<h2 id="known-limitations-and-model-assumptions">8. Known Limitations
+and Model Assumptions</h2>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Limitation</th>
+<th>Risk</th>
+<th>Required Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Class imbalance (denial rate 22.6%) may bias toward approval;
+threshold sensitivity untested</td>
+<td>Medium</td>
+<td>Threshold sensitivity analysis during validation</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>No temporal ordering in train/test split; model may not capture
+economic cycle effects</td>
+<td>Medium</td>
+<td>PSI-based drift monitoring, quarterly</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>Linear log-odds assumption of logistic regression may miss nonlinear
+effects</td>
+<td>Low</td>
+<td>Validated via HL test and residual analysis; Random Forest
+challenger provides nonlinear benchmark</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>Protected attribute proxy risk: Utilization and Balance may be
+correlated with race/gender</td>
+<td>High</td>
+<td>Slicing fairness analysis; evaluate fairness-aware preprocessing for
+future model version</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>Model trained on single institution portfolio; generalizability to
+other portfolios is unvalidated</td>
+<td>Low</td>
+<td>Out-of-scope for current validation; flag for any portfolio
+expansion</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="model-artifacts-and-reproducibility">9. Model Artifacts and
+Reproducibility</h2>
+<h3 id="artifact-inventory">9.1 Artifact Inventory</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Artifact</th>
+<th>Filename</th>
+<th>Format</th>
+<th>Location</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>This report</td>
+<td>simucredit_model_dev.md</td>
+<td>Markdown</td>
+<td>/docs/</td>
+</tr>
+</tbody>
+</table>
+<h3 id="environment-and-dependencies">9.2 Environment and
+Dependencies</h3>
+<pre><code>python        3.11.4
+scikit-learn  1.3.2
+pandas        2.1.4
+numpy         1.26.2
+scipy         1.11.4
+modeva        0.9.1</code></pre>
+<h3 id="reproduction-instructions">9.3 Reproduction Instructions</h3>
+<p>The validation team should reconstruct the model independently from
+this specification:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Load data</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_csv(<span class="st">&#39;SimuCredit_v2.csv&#39;</span>)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Define features and target</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>FEATURES <span class="op">=</span> [<span class="st">&#39;Mortgage&#39;</span>,<span class="st">&#39;Balance&#39;</span>,<span class="st">&#39;Amount Past Due&#39;</span>,</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>            <span class="st">&#39;Delinquency&#39;</span>,<span class="st">&#39;Inquiry&#39;</span>,<span class="st">&#39;Open Trade&#39;</span>,<span class="st">&#39;Utilization&#39;</span>]</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> df[FEATURES]<span class="op">;</span> y <span class="op">=</span> df[<span class="st">&#39;Status&#39;</span>]</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Split (must match: test_size=0.20, stratify=y, random_state=42)</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.model_selection <span class="im">import</span> train_test_split</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>X_tr, X_te, y_tr, y_te <span class="op">=</span> train_test_split(</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    X, y, test_size<span class="op">=</span><span class="fl">0.20</span>, stratify<span class="op">=</span>y, random_state<span class="op">=</span><span class="dv">42</span>)</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Preprocess</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.preprocessing <span class="im">import</span> StandardScaler</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.impute <span class="im">import</span> SimpleImputer</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>imp <span class="op">=</span> SimpleImputer(strategy<span class="op">=</span><span class="st">&#39;median&#39;</span>).fit(X_tr)</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>scl <span class="op">=</span> StandardScaler().fit(imp.transform(X_tr))</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>X_tr_s <span class="op">=</span> scl.transform(imp.transform(X_tr))</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>X_te_s <span class="op">=</span> scl.transform(imp.transform(X_te))</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a><span class="co"># 5. Train</span></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.linear_model <span class="im">import</span> LogisticRegression</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> LogisticRegression(C<span class="op">=</span><span class="fl">1.0</span>, max_iter<span class="op">=</span><span class="dv">1000</span>, random_state<span class="op">=</span><span class="dv">42</span>)</span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>model.fit(X_tr_s, y_tr)</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a><span class="co"># 6. Evaluate — expected: AUC ≈ 0.8110, KS ≈ 0.5046</span></span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.metrics <span class="im">import</span> roc_auc_score</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>auc <span class="op">=</span> roc_auc_score(y_te, model.predict_proba(X_te_s)[:,<span class="dv">1</span>])</span></code></pre></div>
+<hr />
+<h2 id="validation-checklist-and-sign-off">10. Validation Checklist and
+Sign-off</h2>
+<p>The following items are submitted to the independent validation team
+for review:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Validation Item</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Independent model reconstruction from this specification</td>
+<td>⬜ Pending</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Performance validation (AUC, KS, Gini, HL, K-Fold CV)</td>
+<td>⬜ Pending</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>Robustness testing (feature perturbation, resilience)</td>
+<td>⬜ Pending</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>Fairness audit — AIR for all protected attributes</td>
+<td>⬜ Pending</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>Fairness mitigation analysis (if AIR &lt; 0.80)</td>
+<td>⬜ Pending</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>Interpretability review (coefficients, SHAP, PDP)</td>
+<td>⬜ Pending</td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td>Challenger model comparison (LR vs. RF)</td>
+<td>⬜ Pending</td>
+</tr>
+<tr class="even">
+<td>8</td>
+<td>Validation report issuance</td>
+<td>⬜ Pending</td>
+</tr>
+<tr class="odd">
+<td>9</td>
+<td>Model Risk Committee (MRC) review and approval</td>
+<td>⬜ Pending</td>
+</tr>
+</tbody>
+</table>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Role</th>
+<th>Name</th>
+<th>Signature</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Model Developer</td>
+<td>[Redacted]</td>
+<td>__________</td>
+<td>April 02, 2026</td>
+</tr>
+<tr class="even">
+<td>Model Owner (Business Line)</td>
+<td>[Redacted]</td>
+<td>__________</td>
+<td>April 02, 2026</td>
+</tr>
+<tr class="odd">
+<td>Independent Validation Lead</td>
+<td><em>Pending</em></td>
+<td>__________</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td>Chief Risk Officer</td>
+<td><em>Pending</em></td>
+<td>__________</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td>MRC Chair</td>
+<td><em>Pending</em></td>
+<td>__________</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
