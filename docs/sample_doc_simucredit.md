@@ -367,14 +367,7 @@ A model has **adverse impact** if AIR < 0.80 for any protected group (the EEOC 4
 ### 9.1 Artifact Inventory
 
 | Artifact | Filename | Format | Location |
-|---|---|---|---|
-| Training + test dataset | SimuCredit_v2.csv | CSV | /data/ |
-| Preprocessing pipeline | preprocessor.pkl | Pickle | /artifacts/ |
-| Champion model (LR) | model_lr.pkl | Pickle | /artifacts/ |
-| Challenger model (RF) | model_rf.pkl | Pickle | /artifacts/ |
-| Protected attributes | protected_data.csv | CSV | /data/ |
-| Training notebook | model_development.ipynb | Jupyter | /notebooks/ |
-| This report | simucredit_model_dev.md | Markdown | /docs/ |
+| This report | sample_doc_simucredit.md | Markdown | /docs/ |
 
 ### 9.2 Environment and Dependencies
 
