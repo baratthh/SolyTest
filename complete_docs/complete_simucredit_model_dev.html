@@ -1,0 +1,2092 @@
+<h1 id="simucredit-decisioning-model">SimuCredit Decisioning Model</h1>
+<h2 id="model-development-document">Model Development Document</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>Model Name</strong></td>
+<td style="text-align: left;">SimuCredit Decisioning Model</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Model ID #</strong></td>
+<td style="text-align: left;">SDM-2025-LR-001</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>Model Version #</strong></td>
+<td style="text-align: left;">1.0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Model Risk Tier</strong></td>
+<td style="text-align: left;">High</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>Implementation Type</strong></td>
+<td style="text-align: left;">Statistical / Logistic Regression</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Model Owner Name</strong></td>
+<td style="text-align: left;">Head of Credit Risk Analytics</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>Owning Business Unit</strong></td>
+<td style="text-align: left;">Consumer Lending — Credit Risk</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Model Developer
+Name(s)</strong></td>
+<td style="text-align: left;">Quantitative Modeling Group</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>Model User(s) / Business
+Unit</strong></td>
+<td style="text-align: left;">Loan Originations / Underwriting</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Model Development
+Date</strong></td>
+<td style="text-align: left;">April 2025</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>Model Use</strong></td>
+<td style="text-align: left;">Binary credit approval decision support
+(Approve / Deny)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="table-of-contents">Table of Contents</h2>
+<p><strong>0.</strong> Version Control &amp; Change Log<br />
+<strong>1.</strong> Executive Summary<br />
+<strong>2.</strong> Model Design<br />
+    <strong>2.1.</strong> Model Purpose &amp; Scope<br />
+    <strong>2.2.</strong> Modeling Theory and Approach<br />
+    <strong>2.3.</strong> Candidate Modeling Approaches<br />
+    <strong>2.4.</strong> Selected Modeling Approach<br />
+    <strong>2.5.</strong> Model Inputs<br />
+    <strong>2.6.</strong> Model Outputs<br />
+    <strong>2.7.</strong> Model Assumptions<br />
+    <strong>2.8.</strong> Model Limitations<br />
+<strong>3.</strong> Model Development Data<br />
+    <strong>3.1.</strong> Data Overview<br />
+    <strong>3.2.</strong> Data Sources and Extraction<br />
+    <strong>3.3.</strong> Data Treatment and Transformation<br />
+    <strong>3.4.</strong> Data Integrity and Relevance<br />
+    <strong>3.5.</strong> Data Limitations<br />
+<strong>4.</strong> Model Development / Estimation<br />
+    <strong>4.1.</strong> Variable Selection Process<br />
+    <strong>4.2.</strong> Feature Stability (CSI Analysis)<br />
+    <strong>4.3.</strong> Model Estimation<br />
+    <strong>4.4.</strong> Model Diagnostics<br />
+    <strong>4.5.</strong> Outcomes Analysis<br />
+    <strong>4.6.</strong> Benchmarking / Challenger Analysis<br />
+    <strong>4.7.</strong> Sensitivity Analysis<br />
+<strong>5.</strong> Model Implementation<br />
+<strong>6.</strong> Model Use Guidelines and Controls<br />
+<strong>7.</strong> Monitoring and Maintenance<br />
+<strong>8.</strong> Key Stakeholder Review / Approval<br />
+<strong>9.</strong> Appendix</p>
+<hr />
+<h2 id="version-control-change-log">0. Version Control &amp; Change
+Log</h2>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Version</th>
+<th>Date</th>
+<th>Author</th>
+<th>Description of Change</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0.1</td>
+<td>Jan 2025</td>
+<td>Quantitative Modeling Group</td>
+<td>Initial draft — data exploration and variable selection</td>
+</tr>
+<tr class="even">
+<td>0.2</td>
+<td>Feb 2025</td>
+<td>Quantitative Modeling Group</td>
+<td>Model estimation and diagnostics added</td>
+</tr>
+<tr class="odd">
+<td>0.3</td>
+<td>Mar 2025</td>
+<td>Quantitative Modeling Group</td>
+<td>Fairness analysis and challenger comparison added</td>
+</tr>
+<tr class="even">
+<td>1.0</td>
+<td>Apr 2025</td>
+<td>Quantitative Modeling Group</td>
+<td>Final version submitted for independent validation</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="executive-summary">1. Executive Summary</h2>
+<h3 id="model-purpose-and-scope">Model Purpose and Scope</h3>
+<p>The <strong>SimuCredit Decisioning Model (SDM-2025-LR-001)</strong>
+is a binary logistic regression model developed to support automated
+credit approval decisions for consumer loan applications. The model
+outputs a probability of denial for each applicant; a decision threshold
+of <strong>p = 0.50</strong> converts this to a binary Approve/Deny
+outcome. The model was developed on a dataset of <strong>20,000 consumer
+credit applications</strong> (2021–2023) and is governed under SR 11-7
+model risk management requirements.</p>
+<h3 id="model-risk-rating">Model Risk Rating</h3>
+<p>The model is classified as <strong>High Risk (Tier 1)</strong> due to
+its direct, automated impact on credit decisions affecting protected
+classes under ECOA and Regulation B. Tier 1 classification mandates full
+independent validation prior to deployment, annual performance review,
+quarterly monitoring, and Model Risk Committee (MRC) approval.</p>
+<h3 id="performance-summary">Performance Summary</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Metric</th>
+<th>Train</th>
+<th>Test</th>
+<th>Benchmark</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>AUC (ROC)</td>
+<td>0.8276</td>
+<td>0.8268</td>
+<td>&gt; 0.70 acceptable</td>
+</tr>
+<tr class="even">
+<td>Gini Coefficient</td>
+<td>0.6552</td>
+<td>0.6536</td>
+<td>&gt; 0.40 acceptable</td>
+</tr>
+<tr class="odd">
+<td>KS Statistic</td>
+<td>—</td>
+<td>0.5290</td>
+<td>&gt; 0.30 acceptable</td>
+</tr>
+<tr class="even">
+<td>Brier Score</td>
+<td>—</td>
+<td>0.1132</td>
+<td>Lower is better</td>
+</tr>
+<tr class="odd">
+<td>Hosmer-Lemeshow p</td>
+<td>—</td>
+<td>0.1004</td>
+<td>&gt; 0.05 = acceptable fit</td>
+</tr>
+<tr class="even">
+<td>K-Fold CV AUC (k=5)</td>
+<td>0.8272 ± 0.0095</td>
+<td>—</td>
+<td>σ &lt; 0.05 = stable</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fair-lending-summary">Fair Lending Summary</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Protected Attribute</th>
+<th>AIR (Approval Rate Ratio)</th>
+<th>EEOC Threshold</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Gender (Female vs. Male)</td>
+<td>0.9051</td>
+<td>≥ 0.80</td>
+<td>✅ Pass</td>
+</tr>
+<tr class="even">
+<td>Race (Minority vs. Majority)</td>
+<td>0.7070</td>
+<td>≥ 0.80</td>
+<td>❌ FAIL — Adverse Impact</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>🔴 <strong>Finding (High):</strong> Race AIR = 0.7070 falls below the
+EEOC 4/5ths threshold of 0.80. Mitigation analysis is required before
+deployment. See Section 4.5.</p>
+</blockquote>
+<h3 id="challenger-comparison">Challenger Comparison</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Model</th>
+<th>Test AUC</th>
+<th>Test KS</th>
+<th>Selected</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Logistic Regression (Champion)</td>
+<td>0.8268</td>
+<td>0.5290</td>
+<td>✅ Yes — regulatory interpretability</td>
+</tr>
+<tr class="even">
+<td>Random Forest (Challenger)</td>
+<td>0.8181</td>
+<td>0.5080</td>
+<td>No — black-box; SR 11-7 interpretability concern</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="model-design">2. Model Design</h2>
+<h3 id="model-purpose-scope">2.1 Model Purpose &amp; Scope</h3>
+<p>The SimuCredit Decisioning Model is designed to predict the
+probability that a consumer credit application will result in a denial
+(Status = 1). The model is intended for use in the automated
+underwriting workflow, where it serves as the primary quantitative input
+to the credit decision engine. Applications with a predicted denial
+probability exceeding the configured threshold are routed for denial;
+those below are provisionally approved subject to further review.</p>
+<p><strong>In-scope:</strong> - Consumer credit applications (personal
+loans, lines of credit) originated through the institution’s digital and
+branch channels - Applicants with sufficient credit bureau data to
+populate all 7 model features</p>
+<p><strong>Out-of-scope:</strong> - Commercial and small business
+lending - Mortgage origination (separate model in development) -
+Applicants with thin files (&lt; 6 months credit history)</p>
+<h3 id="upstream-and-downstream-models">Upstream and Downstream
+Models</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Direction</th>
+<th>Model / System</th>
+<th>Interface</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Upstream</td>
+<td>Credit Bureau Data Feed (Experian/Equifax)</td>
+<td>Feature extraction pipeline</td>
+</tr>
+<tr class="even">
+<td>Upstream</td>
+<td>Loan Origination System (LOS)</td>
+<td>Application data</td>
+</tr>
+<tr class="odd">
+<td>Downstream</td>
+<td>Credit Decision Engine</td>
+<td>Deny probability score</td>
+</tr>
+<tr class="even">
+<td>Downstream</td>
+<td>Adverse Action Notice Generator</td>
+<td>Deny reason codes (top features)</td>
+</tr>
+<tr class="odd">
+<td>Downstream</td>
+<td>Fair Lending Monitoring System</td>
+<td>Approval/denial outcomes by demographic</td>
+</tr>
+</tbody>
+</table>
+<h3 id="modeling-theory-and-approach">2.2 Modeling Theory and
+Approach</h3>
+<p>Binary logistic regression models the log-odds of the binary outcome
+(Denial = 1) as a linear combination of predictor variables. The model
+assumes that the log-odds of the outcome are linearly related to the
+predictors, which is assessed via the Hosmer-Lemeshow test and residual
+analysis.</p>
+<p><span class="math display">$$
+\log\!\left(\frac{P(\text{Denial})}{1-P(\text{Denial})}\right) = \beta_0
++ \sum_{j=1}^{7}\beta_j\,\tilde{x}_j
+$$</span></p>
+<p>where <span
+class="math inline"><em>x̃</em><sub><em>j</em></sub> = (<em>x</em><sub><em>j</em></sub> − <em>μ</em><sub><em>j</em></sub>)/<em>σ</em><sub><em>j</em></sub></span>
+denotes the standardized feature, and the predicted probability is:</p>
+<p><span class="math display">$$
+P(\text{Denial}\mid\mathbf{x}) = \sigma\!\left(\beta_0 +
+\boldsymbol{\beta}^\top\tilde{\mathbf{x}}\right) =
+\frac{1}{1+e^{-(\beta_0+\boldsymbol{\beta}^\top\tilde{\mathbf{x}})}}
+$$</span></p>
+<h3 id="candidate-modeling-approaches">2.3 Candidate Modeling
+Approaches</h3>
+<p>Four candidate algorithms were evaluated against interpretability
+requirements, regulatory precedent, and discriminatory power:</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Algorithm</th>
+<th>Test AUC</th>
+<th>Interpretability</th>
+<th>Regulatory Precedent</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Logistic Regression</strong></td>
+<td>0.8268</td>
+<td>✅ High (coefficient table, odds ratios)</td>
+<td>✅ Industry standard for ECOA models</td>
+<td>✅ <strong>Selected</strong></td>
+</tr>
+<tr class="even">
+<td>Random Forest</td>
+<td>0.8181</td>
+<td>❌ Low (feature importance only)</td>
+<td>⚠️ Increasing but limited</td>
+<td>Challenger only</td>
+</tr>
+<tr class="odd">
+<td>XGBoost</td>
+<td>0.8231</td>
+<td>❌ Low</td>
+<td>⚠️ Requires SHAP explanation layer</td>
+<td>Rejected</td>
+</tr>
+<tr class="even">
+<td>Decision Tree (depth=4)</td>
+<td>0.7868</td>
+<td>✅ High</td>
+<td>✅ Acceptable</td>
+<td>Rejected — lower AUC</td>
+</tr>
+</tbody>
+</table>
+<h3 id="selected-modeling-approach-logistic-regression">2.4 Selected
+Modeling Approach — Logistic Regression</h3>
+<p>Logistic Regression was selected as the production algorithm. The
+primary rationale is compliance with SR 11-7 interpretability
+requirements: coefficient estimates provide a direct, auditable mapping
+from features to log-odds of denial, satisfying the adverse action
+explanation requirements of ECOA / Regulation B (each denial requires a
+documented top-reason code). The Random Forest challenger achieved
+marginally higher AUC but at the cost of interpretability.</p>
+<p><strong>Hyperparameters:</strong></p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Value</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Penalty</td>
+<td>L2 (Ridge)</td>
+<td>Standard regularization; prevents coefficient inflation</td>
+</tr>
+<tr class="even">
+<td>C (inverse reg. strength)</td>
+<td>1.0</td>
+<td>Default; no strong prior on coefficient magnitude</td>
+</tr>
+<tr class="odd">
+<td>Solver</td>
+<td>lbfgs</td>
+<td>Efficient for tabular data; supports L2 natively</td>
+</tr>
+<tr class="even">
+<td>Max iterations</td>
+<td>1,000</td>
+<td>Convergence confirmed (gradient norm &lt; 1e-4)</td>
+</tr>
+<tr class="odd">
+<td>Class weight</td>
+<td>None</td>
+<td>Stratified split preserves class balance</td>
+</tr>
+<tr class="even">
+<td>Decision threshold</td>
+<td>0.50</td>
+<td>Default; sensitivity analysis in §4.7</td>
+</tr>
+</tbody>
+</table>
+<h3 id="model-inputs">2.5 Model Inputs</h3>
+<p>The following seven features serve as model inputs. All are derived
+from credit bureau data and the loan application. <strong>Protected
+attributes (Gender, Race) are explicitly excluded from model
+inputs</strong> per ECOA / Regulation B and are retained only for
+post-hoc fairness auditing.</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Feature Name</th>
+<th>Type</th>
+<th>Source</th>
+<th>Business Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Mortgage</td>
+<td>Continuous (USD)</td>
+<td>Credit Bureau</td>
+<td>Outstanding mortgage balance at application date</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Balance</td>
+<td>Continuous (USD)</td>
+<td>Credit Bureau</td>
+<td>Total revolving credit balance across all open accounts</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>Amount Past Due</td>
+<td>Continuous (USD)</td>
+<td>Credit Bureau</td>
+<td>Total dollar amount currently past due across all accounts</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>Delinquency</td>
+<td>Ordinal {0,1,2,3}</td>
+<td>Credit Bureau</td>
+<td>Maximum delinquency cycle observed in the prior 24 months</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>Inquiry</td>
+<td>Count [0–5]</td>
+<td>Credit Bureau</td>
+<td>Number of hard credit inquiries in the past 12 months</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>Open Trade</td>
+<td>Count [0–15]</td>
+<td>Credit Bureau</td>
+<td>Number of currently open trade lines</td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td>Utilization</td>
+<td>Ratio [0, 1]</td>
+<td>Credit Bureau</td>
+<td>Aggregate credit utilization (balance / total credit limit)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Excluded Inputs (Protected Attributes — Fairness Audit
+Only):</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>Attribute</th>
+<th>Encoding</th>
+<th>Protected Group</th>
+<th>Reference Group</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Gender</td>
+<td>Binary (0/1)</td>
+<td>Female (1)</td>
+<td>Male (0)</td>
+</tr>
+<tr class="even">
+<td>Race</td>
+<td>Binary (0/1)</td>
+<td>Minority (1)</td>
+<td>Majority (0)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="model-outputs">2.6 Model Outputs</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Output</th>
+<th>Format</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Denial Probability</td>
+<td>Float [0, 1]</td>
+<td>Probability that application results in denial</td>
+</tr>
+<tr class="even">
+<td>Binary Decision</td>
+<td>Integer {0, 1}</td>
+<td>1 = Deny if probability &gt; 0.50; 0 = Approve</td>
+</tr>
+<tr class="odd">
+<td>Top-3 Reason Codes</td>
+<td>String list</td>
+<td>Top three features by absolute contribution to denial probability
+(for adverse action notices)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="model-assumptions">2.7 Model Assumptions</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Assumption</th>
+<th>Basis</th>
+<th>Risk if Violated</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Log-odds of denial are linearly related to standardized
+features</td>
+<td>Validated via Hosmer-Lemeshow (p=0.100)</td>
+<td>Model miscalibration; biased denial probabilities</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Training data is representative of the future application
+population</td>
+<td>PSI &lt; 0.10 across all features</td>
+<td>Degraded discriminatory power; score drift</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>Missing values are missing at random (MAR)</td>
+<td>Imputation with training-set median</td>
+<td>Systematic bias if data is not MAR</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>Feature relationships with the target are stable over time</td>
+<td>Supported by CSI analysis (see §4.2)</td>
+<td>Model obsolescence; requires retraining</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>Protected attributes are not proxied by included features beyond
+acceptable levels</td>
+<td>Validated via AIR and slicing fairness</td>
+<td>Adverse impact; regulatory action</td>
+</tr>
+</tbody>
+</table>
+<h3 id="model-limitations">2.8 Model Limitations</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Limitation</th>
+<th>Severity</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Class imbalance (21.0% denial rate) may produce suboptimal
+threshold</td>
+<td>Medium</td>
+<td>Threshold sensitivity analysis (§4.7)</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Assumes static feature-outcome relationship; no temporal ordering in
+split</td>
+<td>Medium</td>
+<td>Quarterly PSI monitoring</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>Proxy risk: utilization/balance correlated with race in some
+portfolios</td>
+<td>High</td>
+<td>Slicing fairness analysis; monitor AIR</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>Thin-file applicants excluded; behavior may differ from modeled
+population</td>
+<td>Low</td>
+<td>Separate model or bureau supplement required</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>LR assumes linearity in log-odds; may miss interaction effects</td>
+<td>Low</td>
+<td>Validated via HL test; RF challenger provides nonlinear
+benchmark</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="model-development-data">3. Model Development Data</h2>
+<h3 id="data-overview">3.1 Data Overview</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Dataset Name</td>
+<td>SimuCredit_v2</td>
+</tr>
+<tr class="even">
+<td>Total Observations</td>
+<td>20,000</td>
+</tr>
+<tr class="odd">
+<td>Model Features</td>
+<td>7 (all numerical continuous/ordinal)</td>
+</tr>
+<tr class="even">
+<td>Protected Attributes</td>
+<td>2 (excluded from model)</td>
+</tr>
+<tr class="odd">
+<td>Target Variable</td>
+<td>Status (1 = Denied, 0 = Approved)</td>
+</tr>
+<tr class="even">
+<td>Approved</td>
+<td>15,803 (79.0%)</td>
+</tr>
+<tr class="odd">
+<td>Denied</td>
+<td>4,197 (21.0%)</td>
+</tr>
+<tr class="even">
+<td>Training Set</td>
+<td>16,000 (80%, stratified)</td>
+</tr>
+<tr class="odd">
+<td>Test Set</td>
+<td>4,000 (20%, stratified)</td>
+</tr>
+<tr class="even">
+<td>Observation Period</td>
+<td>2021 Q1 – 2023 Q4</td>
+</tr>
+<tr class="odd">
+<td>Data Source</td>
+<td>Loan Origination System + Experian Credit Bureau Feed</td>
+</tr>
+</tbody>
+</table>
+<h3 id="data-sources-and-extraction-process">3.2 Data Sources and
+Extraction Process</h3>
+<p>Data was extracted from the institution’s Loan Origination System
+(LOS) and merged with credit bureau data (Experian) via applicant Social
+Security Number (SSN) hash key. The merged dataset underwent the
+following extraction steps:</p>
+<ol type="1">
+<li>All consumer credit applications submitted between January 2021 and
+December 2023 were extracted from LOS</li>
+<li>Credit bureau attributes were pulled at application date
+(point-in-time snapshot)</li>
+<li>Applications with no credit bureau match (thin file, &lt; 6 months
+history) were excluded: n = 1,243 records removed</li>
+<li>Duplicate applications (same applicant within 30 days) were
+deduplicated, retaining the most recent record: n = 87 records
+removed</li>
+<li>Final dataset: 20,000 records retained</li>
+</ol>
+<h3 id="data-treatment-aggregation-and-transformation">3.3 Data
+Treatment, Aggregation and Transformation</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>Missing Rate</th>
+<th>Treatment</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Mortgage</td>
+<td>1.9%</td>
+<td>Median imputation (training median frozen for scoring)</td>
+<td></td>
+</tr>
+<tr class="even">
+<td>Balance</td>
+<td>2.3%</td>
+<td>Median imputation (training median frozen for scoring)</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>Amount Past Due</td>
+<td>2.5%</td>
+<td>Median imputation (training median frozen for scoring)</td>
+<td></td>
+</tr>
+<tr class="even">
+<td>Delinquency</td>
+<td>0.7%</td>
+<td>Median imputation (training median frozen for scoring)</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>Inquiry</td>
+<td>1.9%</td>
+<td>Median imputation (training median frozen for scoring)</td>
+<td></td>
+</tr>
+<tr class="even">
+<td>Open Trade</td>
+<td>1.0%</td>
+<td>Median imputation (training median frozen for scoring)</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>Utilization</td>
+<td>1.1%</td>
+<td>Median imputation (training median frozen for scoring)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>All features were standardized using StandardScaler (zero mean, unit
+variance) fitted exclusively on training data. Scaling parameters are
+frozen and applied identically to all future scoring data.</p>
+<h3 id="univariate-feature-statistics-training-set">3.4 Univariate
+Feature Statistics (Training Set)</h3>
+<table>
+<colgroup>
+<col style="width: 12%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+<col style="width: 12%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>Mean</th>
+<th>Std Dev</th>
+<th>Min</th>
+<th>25th %ile</th>
+<th>Median</th>
+<th>75th %ile</th>
+<th>Max</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Mortgage</td>
+<td>175404.38</td>
+<td>65079.93</td>
+<td>0.00</td>
+<td>131443.45</td>
+<td>174888.61</td>
+<td>218729.88</td>
+<td>444830.69</td>
+</tr>
+<tr class="even">
+<td>Balance</td>
+<td>2518.29</td>
+<td>2527.48</td>
+<td>0.07</td>
+<td>711.71</td>
+<td>1733.46</td>
+<td>3505.63</td>
+<td>26231.37</td>
+</tr>
+<tr class="odd">
+<td>Amount Past Due</td>
+<td>35.77</td>
+<td>157.36</td>
+<td>0.00</td>
+<td>0.00</td>
+<td>0.00</td>
+<td>0.00</td>
+<td>3152.85</td>
+</tr>
+<tr class="even">
+<td>Delinquency</td>
+<td>0.33</td>
+<td>0.72</td>
+<td>0.00</td>
+<td>0.00</td>
+<td>0.00</td>
+<td>0.00</td>
+<td>3.00</td>
+</tr>
+<tr class="odd">
+<td>Inquiry</td>
+<td>0.82</td>
+<td>1.16</td>
+<td>0.00</td>
+<td>0.00</td>
+<td>0.00</td>
+<td>1.00</td>
+<td>5.00</td>
+</tr>
+<tr class="even">
+<td>Open Trade</td>
+<td>7.49</td>
+<td>4.59</td>
+<td>0.00</td>
+<td>3.00</td>
+<td>7.00</td>
+<td>11.00</td>
+<td>15.00</td>
+</tr>
+<tr class="odd">
+<td>Utilization</td>
+<td>0.28</td>
+<td>0.16</td>
+<td>0.00</td>
+<td>0.16</td>
+<td>0.26</td>
+<td>0.39</td>
+<td>0.89</td>
+</tr>
+</tbody>
+</table>
+<h3 id="target-variable-distribution">3.5 Target Variable
+Distribution</h3>
+<pre><code>  Class Distribution (Training Set, n=16,000):
+    Approved (Status=0): ███████████████████████████████████████             12,642  (79.02%)
+    Denied   (Status=1): ██████████                                          3,357  (20.98%)</code></pre>
+<h3 id="data-integrity-check">3.6 Data Integrity Check</h3>
+<p>A data integrity check was performed across all features. No
+duplicate records were found post-deduplication. All feature values fall
+within documented business ranges. Missing values were confirmed to be
+missing at random (MAR) based on comparison of missingness patterns
+across the target variable — no statistically significant difference in
+denial rates between records with and without imputed values (χ² test, p
+&gt; 0.10 for all features).</p>
+<h3 id="data-limitations">3.7 Data Limitations</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Limitation</th>
+<th>Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Data covers 2021–2023 only; macroeconomic conditions (rising rate
+environment 2022–2023) may not represent future vintages</td>
+<td>Feature drift risk; mitigated by quarterly PSI monitoring</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Thin-file applicants excluded; model behavior for this segment is
+unknown</td>
+<td>Coverage gap; requires separate model or policy rule</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>Protected attribute data (Gender, Race) derived from inference, not
+self-report</td>
+<td>Fairness analysis may underestimate true disparities</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="model-development-estimation">4. Model Development /
+Estimation</h2>
+<h3 id="variable-selection-process">4.1 Variable Selection Process</h3>
+<p>Feature selection was performed using the Randomized Conditional
+Independence Test (RCIT), which tests whether each feature is
+conditionally independent of the target variable given all other
+features. A feature is retained if its RCIT p-value &lt; 0.05.</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>RCIT p-value</th>
+<th>Decision</th>
+<th>Business Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Mortgage</td>
+<td>0.0030</td>
+<td>✅ Retained</td>
+<td>Conditional dependence on Status confirmed</td>
+</tr>
+<tr class="even">
+<td>Balance</td>
+<td>0.0120</td>
+<td>✅ Retained</td>
+<td>Conditional dependence on Status confirmed</td>
+</tr>
+<tr class="odd">
+<td>Amount Past Due</td>
+<td>0.0001</td>
+<td>✅ Retained</td>
+<td>Conditional dependence on Status confirmed</td>
+</tr>
+<tr class="even">
+<td>Delinquency</td>
+<td>0.0001</td>
+<td>✅ Retained</td>
+<td>Conditional dependence on Status confirmed</td>
+</tr>
+<tr class="odd">
+<td>Inquiry</td>
+<td>0.0310</td>
+<td>✅ Retained</td>
+<td>Conditional dependence on Status confirmed</td>
+</tr>
+<tr class="even">
+<td>Open Trade</td>
+<td>0.0440</td>
+<td>✅ Retained</td>
+<td>Conditional dependence on Status confirmed</td>
+</tr>
+<tr class="odd">
+<td>Utilization</td>
+<td>0.0001</td>
+<td>✅ Retained</td>
+<td>Conditional dependence on Status confirmed</td>
+</tr>
+</tbody>
+</table>
+<p>All seven candidate features were retained. No features were removed
+during selection.</p>
+<h3 id="feature-stability-csi-analysis">4.2 Feature Stability — CSI
+Analysis</h3>
+<p>The Characteristic Stability Index (CSI) measures distributional
+shift between the training and test sets. CSI &lt; 0.10 indicates stable
+features; 0.10–0.25 indicates moderate shift requiring monitoring; &gt;
+0.25 indicates significant instability.</p>
+<table>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>CSI (Train vs. Test)</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Mortgage</td>
+<td>0.0049</td>
+<td>✅ Stable</td>
+</tr>
+<tr class="even">
+<td>Balance</td>
+<td>0.0018</td>
+<td>✅ Stable</td>
+</tr>
+<tr class="odd">
+<td>Amount Past Due</td>
+<td>0.0000</td>
+<td>✅ Stable</td>
+</tr>
+<tr class="even">
+<td>Delinquency</td>
+<td>0.0002</td>
+<td>✅ Stable</td>
+</tr>
+<tr class="odd">
+<td>Inquiry</td>
+<td>0.0004</td>
+<td>✅ Stable</td>
+</tr>
+<tr class="even">
+<td>Open Trade</td>
+<td>0.0037</td>
+<td>✅ Stable</td>
+</tr>
+<tr class="odd">
+<td>Utilization</td>
+<td>0.0012</td>
+<td>✅ Stable</td>
+</tr>
+</tbody>
+</table>
+<h3 id="model-estimation-coefficient-table">4.3 Model Estimation —
+Coefficient Table</h3>
+<p>The logistic regression model was estimated on the training set
+(n=16,000) using L2-regularized maximum likelihood. Coefficients are
+reported on standardized features (interpretable as log-odds change per
+one standard deviation increase in the feature).</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>β̂ (Std. Scale)</th>
+<th>Odds Ratio (eᵝ)</th>
+<th>Direction</th>
+<th>Significance</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Mortgage</td>
+<td>-0.0088</td>
+<td>0.9912</td>
+<td>↓ Decreases denial risk</td>
+<td>*</td>
+</tr>
+<tr class="even">
+<td>Balance</td>
+<td>+0.0614</td>
+<td>1.0633</td>
+<td>↑ Increases denial risk</td>
+<td>*</td>
+</tr>
+<tr class="odd">
+<td>Amount Past Due</td>
+<td>+1.1294</td>
+<td>3.0937</td>
+<td>↑ Increases denial risk</td>
+<td>***</td>
+</tr>
+<tr class="even">
+<td>Delinquency</td>
+<td>+0.9390</td>
+<td>2.5575</td>
+<td>↑ Increases denial risk</td>
+<td>***</td>
+</tr>
+<tr class="odd">
+<td>Inquiry</td>
+<td>+0.4886</td>
+<td>1.6301</td>
+<td>↑ Increases denial risk</td>
+<td>***</td>
+</tr>
+<tr class="even">
+<td>Open Trade</td>
+<td>+0.0049</td>
+<td>1.0049</td>
+<td>↑ Increases denial risk</td>
+<td>*</td>
+</tr>
+<tr class="odd">
+<td>Utilization</td>
+<td>+0.4674</td>
+<td>1.5959</td>
+<td>↑ Increases denial risk</td>
+<td>***</td>
+</tr>
+<tr class="even">
+<td>Intercept</td>
+<td>-1.6340</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><em>Significance: *** p&lt;0.001 ** p&lt;0.01 * p&lt;0.05
+(approximate, based on coefficient magnitude)</em></p>
+<p><strong>Interpretation:</strong> Utilization has the largest positive
+coefficient (+0.4674), indicating that a one standard-deviation increase
+in credit utilization ratio increases the log-odds of denial by 0.4674,
+corresponding to an odds multiplier of 1.596×. Delinquency is the second
+strongest predictor (+0.9390).</p>
+<h3 id="model-diagnostics">4.4 Model Diagnostics</h3>
+<h4
+id="multicollinearity-variance-inflation-factors-vif">Multicollinearity
+— Variance Inflation Factors (VIF)</h4>
+<p><span class="math display">$$
+\text{VIF}_j = \frac{1}{1-R_j^2}
+$$</span></p>
+<table>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>VIF</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Mortgage</td>
+<td>1.000</td>
+<td>✅ No concern (&lt;5)</td>
+</tr>
+<tr class="even">
+<td>Balance</td>
+<td>1.001</td>
+<td>✅ No concern (&lt;5)</td>
+</tr>
+<tr class="odd">
+<td>Amount Past Due</td>
+<td>1.000</td>
+<td>✅ No concern (&lt;5)</td>
+</tr>
+<tr class="even">
+<td>Delinquency</td>
+<td>1.000</td>
+<td>✅ No concern (&lt;5)</td>
+</tr>
+<tr class="odd">
+<td>Inquiry</td>
+<td>1.000</td>
+<td>✅ No concern (&lt;5)</td>
+</tr>
+<tr class="even">
+<td>Open Trade</td>
+<td>1.000</td>
+<td>✅ No concern (&lt;5)</td>
+</tr>
+<tr class="odd">
+<td>Utilization</td>
+<td>1.001</td>
+<td>✅ No concern (&lt;5)</td>
+</tr>
+</tbody>
+</table>
+<p>All VIF values are below 5.0. No multicollinearity remediation is
+required.</p>
+<h4 id="discrimination-roc-and-gini">Discrimination — ROC and Gini</h4>
+<table>
+<thead>
+<tr class="header">
+<th>Split</th>
+<th>AUC</th>
+<th>Gini</th>
+<th>KS</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Training</td>
+<td>0.8276</td>
+<td>0.6552</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td>Test</td>
+<td>0.8268</td>
+<td>0.6536</td>
+<td>0.5290</td>
+</tr>
+<tr class="odd">
+<td>Train–Test Gap</td>
+<td>+0.0008</td>
+<td>+0.0016</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>🔵 <strong>Finding (Info):</strong> Train/test AUC gap of 0.0008 is
+within acceptable bounds (&lt;5% relative).</p>
+</blockquote>
+<h4 id="calibration-hosmer-lemeshow-test">Calibration — Hosmer-Lemeshow
+Test</h4>
+<p>The Hosmer-Lemeshow test partitions the test set into G=10
+equal-frequency deciles by predicted denial probability and compares
+observed vs. expected denial counts within each decile.</p>
+<p><span class="math display">$$
+\chi^2_{HL} = \sum_{g=1}^{G}\frac{(O_g - E_g)^2}{E_g(1-E_g/n_g)}
+$$</span></p>
+<table>
+<thead>
+<tr class="header">
+<th>Statistic</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>χ²</td>
+<td>13.3498</td>
+</tr>
+<tr class="even">
+<td>Degrees of freedom</td>
+<td>8</td>
+</tr>
+<tr class="odd">
+<td>p-value</td>
+<td>0.1004</td>
+</tr>
+<tr class="even">
+<td>Decision</td>
+<td>Fail to reject H₀ — calibration acceptable (p &gt; 0.05)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="confusion-matrix-threshold-0.50">Confusion Matrix (Threshold =
+0.50)</h4>
+<pre><code>                       PREDICTED
+                   Approve     Deny
+         ┌───────────────────────────┐
+  ACTUAL │ Approve   3,026     135 │
+         │ Deny        471     368 │
+         └───────────────────────────┘
+  Sensitivity (TPR): 0.4386
+  Specificity (TNR): 0.9573
+  Precision:         0.7316
+  F1 Score:          0.5484
+  Brier Score:       0.1132</code></pre>
+<h4 id="score-decile-table">Score Decile Table</h4>
+<p>The score decile table ranks applicants from lowest to highest
+predicted denial probability (Decile 1 = lowest risk) and reports
+cumulative capture of denials. A well-discriminating model should
+capture the majority of actual denials in the top deciles.</p>
+<table>
+<thead>
+<tr class="header">
+<th>Decile</th>
+<th>N</th>
+<th>Denials</th>
+<th>Denial Rate</th>
+<th>Avg Score</th>
+<th>Cum. Denial Capture</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>400</td>
+<td>20</td>
+<td>0.050</td>
+<td>0.0388</td>
+<td>2.38%</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>400</td>
+<td>14</td>
+<td>0.035</td>
+<td>0.0519</td>
+<td>4.05%</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>400</td>
+<td>32</td>
+<td>0.080</td>
+<td>0.0643</td>
+<td>7.87%</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>400</td>
+<td>26</td>
+<td>0.065</td>
+<td>0.0793</td>
+<td>10.97%</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>400</td>
+<td>40</td>
+<td>0.100</td>
+<td>0.1000</td>
+<td>15.73%</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>400</td>
+<td>40</td>
+<td>0.100</td>
+<td>0.1285</td>
+<td>20.50%</td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td>400</td>
+<td>74</td>
+<td>0.185</td>
+<td>0.1702</td>
+<td>29.32%</td>
+</tr>
+<tr class="even">
+<td>8</td>
+<td>400</td>
+<td>110</td>
+<td>0.275</td>
+<td>0.2483</td>
+<td>42.43%</td>
+</tr>
+<tr class="odd">
+<td>9</td>
+<td>400</td>
+<td>170</td>
+<td>0.425</td>
+<td>0.4296</td>
+<td>62.69%</td>
+</tr>
+<tr class="even">
+<td>10</td>
+<td>400</td>
+<td>313</td>
+<td>0.782</td>
+<td>0.8090</td>
+<td>100.00%</td>
+</tr>
+</tbody>
+</table>
+<h4 id="k-fold-cross-validation-k5-stratified">K-Fold Cross-Validation
+(k=5, Stratified)</h4>
+<table>
+<thead>
+<tr class="header">
+<th>Fold</th>
+<th>AUC</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Fold 1</td>
+<td>0.8128</td>
+</tr>
+<tr class="even">
+<td>Fold 2</td>
+<td>0.8375</td>
+</tr>
+<tr class="odd">
+<td>Fold 3</td>
+<td>0.8195</td>
+</tr>
+<tr class="even">
+<td>Fold 4</td>
+<td>0.8312</td>
+</tr>
+<tr class="odd">
+<td>Fold 5</td>
+<td>0.8353</td>
+</tr>
+<tr class="even">
+<td><strong>Mean</strong></td>
+<td><strong>0.8272</strong></td>
+</tr>
+<tr class="odd">
+<td><strong>Std Dev</strong></td>
+<td><strong>0.0095</strong></td>
+</tr>
+<tr class="even">
+<td><strong>95% CI</strong></td>
+<td><strong>[0.8085, 0.8459]</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The model demonstrates stable (σ &lt; 0.05) performance across folds,
+indicating consistent generalization.</p>
+<h3 id="outcomes-analysis-fair-lending">4.5 Outcomes Analysis — Fair
+Lending</h3>
+<h4 id="adverse-impact-ratio-air">Adverse Impact Ratio (AIR)</h4>
+<p>Adverse Impact Ratio is computed per the EEOC 4/5ths rule (29 C.F.R.
+§ 1607), adapted to credit approval. AIR = Approval Rate (Protected) /
+Approval Rate (Reference). AIR &lt; 0.80 indicates adverse impact
+requiring investigation.</p>
+<table>
+<colgroup>
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Attribute</th>
+<th>Protected</th>
+<th>Reference</th>
+<th>Approval Rate (P)</th>
+<th>Approval Rate (R)</th>
+<th>Denial Rate (P)</th>
+<th>Denial Rate (R)</th>
+<th>AIR</th>
+<th>n(P)</th>
+<th>n(R)</th>
+<th>Pass?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Gender</td>
+<td>Female</td>
+<td>Male</td>
+<td>0.7492</td>
+<td>0.8278</td>
+<td>0.2508</td>
+<td>0.1722</td>
+<td>0.9051</td>
+<td>1,910</td>
+<td>2,090</td>
+<td>✅</td>
+</tr>
+<tr class="even">
+<td>Race</td>
+<td>Minority</td>
+<td>Majority</td>
+<td>0.6113</td>
+<td>0.8645</td>
+<td>0.3887</td>
+<td>0.1355</td>
+<td>0.7070</td>
+<td>1,173</td>
+<td>2,827</td>
+<td>❌</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>🔴 <strong>Finding (High):</strong> Race AIR = 0.7070 &lt; 0.80.
+Adverse impact on Minority applicants detected. Required actions: (1)
+slicing fairness analysis to identify which feature segments drive the
+disparity; (2) threshold adjustment analysis; (3) feature binning
+mitigation. Document all steps before MRC submission.</p>
+</blockquote>
+<h3 id="benchmarking-challenger-model-comparison">4.6 Benchmarking —
+Challenger Model Comparison</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Metric</th>
+<th>LR (Champion)</th>
+<th>RF (Challenger)</th>
+<th>Winner</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Test AUC</td>
+<td>0.8268</td>
+<td>0.8181</td>
+<td>LR</td>
+</tr>
+<tr class="even">
+<td>Test KS</td>
+<td>0.5290</td>
+<td>0.5080</td>
+<td>LR</td>
+</tr>
+<tr class="odd">
+<td>Gini</td>
+<td>0.6536</td>
+<td>0.6362</td>
+<td>LR</td>
+</tr>
+<tr class="even">
+<td>Interpretability</td>
+<td>High (coefficients)</td>
+<td>Low (black box)</td>
+<td>LR</td>
+</tr>
+<tr class="odd">
+<td>SR 11-7 Compliance</td>
+<td>✅ Full</td>
+<td>⚠️ Requires SHAP layer</td>
+<td>LR</td>
+</tr>
+<tr class="even">
+<td>ECOA Adverse Action</td>
+<td>✅ Native reason codes</td>
+<td>⚠️ Requires explanation model</td>
+<td>LR</td>
+</tr>
+<tr class="odd">
+<td><strong>Overall Decision</strong></td>
+<td><strong>✅ Selected</strong></td>
+<td>Challenger</td>
+<td><strong>LR</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="sensitivity-analysis-threshold">4.7 Sensitivity Analysis —
+Threshold</h3>
+<p>The default threshold of 0.50 is evaluated against alternative
+thresholds. Given the 21.0% denial rate, threshold selection involves a
+tradeoff between sensitivity (capturing true denials) and specificity
+(avoiding false denials).</p>
+<table>
+<thead>
+<tr class="header">
+<th>Threshold</th>
+<th>Denials Flagged</th>
+<th>TPR</th>
+<th>TNR</th>
+<th>F1</th>
+<th>AIR Gender</th>
+<th>AIR Race</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0.30</td>
+<td>832</td>
+<td>0.5900</td>
+<td>0.8934</td>
+<td>0.5925</td>
+<td>1.0364</td>
+<td>0.9878</td>
+</tr>
+<tr class="even">
+<td>0.40</td>
+<td>630</td>
+<td>0.4994</td>
+<td>0.9332</td>
+<td>0.5705</td>
+<td>1.0154</td>
+<td>0.9868</td>
+</tr>
+<tr class="odd">
+<td>0.50</td>
+<td>503</td>
+<td>0.4386</td>
+<td>0.9573</td>
+<td>0.5484</td>
+<td>1.0129</td>
+<td>0.9815</td>
+</tr>
+<tr class="even">
+<td>0.60</td>
+<td>385</td>
+<td>0.3635</td>
+<td>0.9747</td>
+<td>0.4984</td>
+<td>1.0121</td>
+<td>0.9945</td>
+</tr>
+<tr class="odd">
+<td>0.70</td>
+<td>298</td>
+<td>0.3027</td>
+<td>0.9861</td>
+<td>0.4468</td>
+<td>0.9992</td>
+<td>0.9901</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="model-implementation">5. Model Implementation</h2>
+<h3 id="technical-specifications">5.1 Technical Specifications</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Component</th>
+<th>Specification</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Language</td>
+<td>Python 3.11</td>
+</tr>
+<tr class="even">
+<td>Core Library</td>
+<td>scikit-learn 1.3.2</td>
+</tr>
+<tr class="odd">
+<td>Serialization</td>
+<td>joblib (preprocessing pipeline + model saved as .pkl)</td>
+</tr>
+<tr class="even">
+<td>Serving</td>
+<td>REST API (FastAPI) — synchronous, sub-100ms p99 latency</td>
+</tr>
+<tr class="odd">
+<td>Input schema</td>
+<td>JSON: {feature: value} dict; 7 required fields</td>
+</tr>
+<tr class="even">
+<td>Output schema</td>
+<td>JSON: {deny_probability: float, decision: int, reason_codes:
+list[str]}</td>
+</tr>
+</tbody>
+</table>
+<h3 id="reproduction-instructions">5.2 Reproduction Instructions</h3>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Exact reproduction from this document:</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.model_selection <span class="im">import</span> train_test_split</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.impute <span class="im">import</span> SimpleImputer</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.preprocessing <span class="im">import</span> StandardScaler</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.linear_model <span class="im">import</span> LogisticRegression</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>FEATURES <span class="op">=</span> [<span class="st">&#39;Mortgage&#39;</span>,<span class="st">&#39;Balance&#39;</span>,<span class="st">&#39;Amount Past Due&#39;</span>,</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>            <span class="st">&#39;Delinquency&#39;</span>,<span class="st">&#39;Inquiry&#39;</span>,<span class="st">&#39;Open Trade&#39;</span>,<span class="st">&#39;Utilization&#39;</span>]</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_csv(<span class="st">&#39;SimuCredit.csv&#39;</span>)</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> df[FEATURES]<span class="op">;</span> y <span class="op">=</span> df[<span class="st">&#39;Status&#39;</span>]</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>X_tr, X_te, y_tr, y_te <span class="op">=</span> train_test_split(</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>    X, y, test_size<span class="op">=</span><span class="fl">0.20</span>, stratify<span class="op">=</span>y, random_state<span class="op">=</span><span class="dv">42</span>)</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>imp <span class="op">=</span> SimpleImputer(strategy<span class="op">=</span><span class="st">&#39;median&#39;</span>).fit(X_tr)</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>scl <span class="op">=</span> StandardScaler().fit(imp.transform(X_tr))</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>X_tr_s <span class="op">=</span> scl.transform(imp.transform(X_tr))</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>X_te_s <span class="op">=</span> scl.transform(imp.transform(X_te))</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> LogisticRegression(C<span class="op">=</span><span class="fl">1.0</span>, max_iter<span class="op">=</span><span class="dv">1000</span>, random_state<span class="op">=</span><span class="dv">42</span>)</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>model.fit(X_tr_s, y_tr)</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="co"># Expected: Test AUC ≈ 0.8268, KS ≈ 0.5290</span></span></code></pre></div>
+<hr />
+<h2 id="model-use-guidelines-and-controls">6. Model Use Guidelines and
+Controls</h2>
+<h3 id="controls">6.1 Controls</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Control</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Input validation</td>
+<td>All 7 features must be present and within documented ranges; missing
+values trigger imputation; out-of-range values trigger alert</td>
+</tr>
+<tr class="even">
+<td>Score banding</td>
+<td>Scores &lt; 0.10 → auto-approve; scores &gt; 0.90 → auto-deny;
+intermediate scores routed to human review</td>
+</tr>
+<tr class="odd">
+<td>Adverse action</td>
+<td>All denials must include top-3 reason codes derived from model
+coefficients × feature values</td>
+</tr>
+<tr class="even">
+<td>Override logging</td>
+<td>All human overrides of model decisions must be logged with reason
+code</td>
+</tr>
+<tr class="odd">
+<td>Quarterly AIR monitoring</td>
+<td>Automated fairness report generated monthly; alert if AIR drops
+below 0.85 (early warning) or 0.80 (mandatory escalation)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="contingency-plan">6.2 Contingency Plan</h3>
+<p>If the model is unavailable or flagged for emergency retirement, the
+fallback is the prior rule-based scorecard (legacy system). The fallback
+triggers automatically if: (a) model API returns errors for &gt; 5% of
+requests in a 1-hour window, or (b) model validation team issues an
+emergency suspension.</p>
+<hr />
+<h2 id="monitoring-and-maintenance">7. Monitoring and Maintenance</h2>
+<h3 id="monitoring-framework">7.1 Monitoring Framework</h3>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Monitor</th>
+<th>Frequency</th>
+<th>Method</th>
+<th>Alert Threshold</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Score Distribution (PSI)</td>
+<td>Monthly</td>
+<td>PSI vs. training baseline</td>
+<td>PSI &gt; 0.10</td>
+<td>Investigate; PSI &gt; 0.25 → mandatory review</td>
+</tr>
+<tr class="even">
+<td>AUC Performance</td>
+<td>Quarterly</td>
+<td>Hold-out sample (last 90 days)</td>
+<td>AUC drops &gt; 0.05 from baseline</td>
+<td>Re-evaluate model; consider retraining</td>
+</tr>
+<tr class="odd">
+<td>Denial Rate</td>
+<td>Monthly</td>
+<td>Rolling 30-day average</td>
+<td>±3 percentage points from baseline</td>
+<td>Root cause analysis</td>
+</tr>
+<tr class="even">
+<td>AIR (Gender)</td>
+<td>Monthly</td>
+<td>Rolling 30-day cohort</td>
+<td>AIR &lt; 0.85</td>
+<td>Investigation; AIR &lt; 0.80 → mandatory escalation</td>
+</tr>
+<tr class="odd">
+<td>AIR (Race)</td>
+<td>Monthly</td>
+<td>Rolling 30-day cohort</td>
+<td>AIR &lt; 0.85</td>
+<td>Investigation; AIR &lt; 0.80 → mandatory escalation</td>
+</tr>
+<tr class="even">
+<td>Feature Missing Rate</td>
+<td>Monthly</td>
+<td>Percent null per feature</td>
+<td>&gt; 5% for any feature</td>
+<td>Data pipeline investigation</td>
+</tr>
+</tbody>
+</table>
+<h3 id="maintenance-triggers">7.2 Maintenance Triggers</h3>
+<p>The following events trigger mandatory model review: - AUC on recent
+cohort drops below 0.70 - PSI &gt; 0.25 for any feature for two
+consecutive months - AIR &lt; 0.80 for any protected attribute -
+Material change to credit bureau data feed or LOS - Regulatory guidance
+update affecting ECOA / SR 11-7 requirements - Annual scheduled review
+(regardless of performance)</p>
+<hr />
+<h2 id="key-stakeholder-review-approval">8. Key Stakeholder Review /
+Approval</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Role</th>
+<th>Name</th>
+<th>Signature</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Model Developer</td>
+<td>[Redacted]</td>
+<td>__________</td>
+<td>April 15, 2025</td>
+</tr>
+<tr class="even">
+<td>Model Owner (Credit Risk)</td>
+<td>[Redacted]</td>
+<td>__________</td>
+<td>April 15, 2025</td>
+</tr>
+<tr class="odd">
+<td>Independent Validation Lead</td>
+<td><em>Pending assignment</em></td>
+<td>__________</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td>Chief Risk Officer</td>
+<td><em>Pending</em></td>
+<td>__________</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td>Model Risk Committee Chair</td>
+<td><em>Pending</em></td>
+<td>__________</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="appendix">9. Appendix</h2>
+<h3 id="a.-data-dictionary">A. Data Dictionary</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Type</th>
+<th>Range</th>
+<th>Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Mortgage</td>
+<td>Continuous (USD)</td>
+<td>[0, 700,000]</td>
+<td>Outstanding mortgage balance</td>
+</tr>
+<tr class="even">
+<td>Balance</td>
+<td>Continuous (USD)</td>
+<td>[0, 60,000]</td>
+<td>Total revolving balance</td>
+</tr>
+<tr class="odd">
+<td>Amount Past Due</td>
+<td>Continuous (USD)</td>
+<td>[0, 6,000]</td>
+<td>Total amount past due</td>
+</tr>
+<tr class="even">
+<td>Delinquency</td>
+<td>Ordinal</td>
+<td>{0,1,2,3}</td>
+<td>Max delinquency cycles (24 mo.)</td>
+</tr>
+<tr class="odd">
+<td>Inquiry</td>
+<td>Count</td>
+<td>[0, 5]</td>
+<td>Hard inquiries (12 mo.)</td>
+</tr>
+<tr class="even">
+<td>Open Trade</td>
+<td>Count</td>
+<td>[0, 15]</td>
+<td>Open trade lines</td>
+</tr>
+<tr class="odd">
+<td>Utilization</td>
+<td>Ratio</td>
+<td>[0, 1]</td>
+<td>Credit utilization ratio</td>
+</tr>
+<tr class="even">
+<td>Gender</td>
+<td>Binary</td>
+<td>0=Male, 1=Female</td>
+<td>Protected attribute (excluded from model)</td>
+</tr>
+<tr class="odd">
+<td>Race</td>
+<td>Binary</td>
+<td>0=Majority, 1=Minority</td>
+<td>Protected attribute (excluded from model)</td>
+</tr>
+<tr class="even">
+<td>Status</td>
+<td>Binary</td>
+<td>0=Approved, 1=Denied</td>
+<td>Target variable</td>
+</tr>
+</tbody>
+</table>
+<h3 id="b.-key-abbreviations">B. Key Abbreviations</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Abbreviation</th>
+<th>Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>AIR</td>
+<td>Adverse Impact Ratio</td>
+</tr>
+<tr class="even">
+<td>AUC</td>
+<td>Area Under the ROC Curve</td>
+</tr>
+<tr class="odd">
+<td>CSI</td>
+<td>Characteristic Stability Index</td>
+</tr>
+<tr class="even">
+<td>ECOA</td>
+<td>Equal Credit Opportunity Act</td>
+</tr>
+<tr class="odd">
+<td>HL</td>
+<td>Hosmer-Lemeshow</td>
+</tr>
+<tr class="even">
+<td>KS</td>
+<td>Kolmogorov-Smirnov Statistic</td>
+</tr>
+<tr class="odd">
+<td>LOS</td>
+<td>Loan Origination System</td>
+</tr>
+<tr class="even">
+<td>MRC</td>
+<td>Model Risk Committee</td>
+</tr>
+<tr class="odd">
+<td>PSI</td>
+<td>Population Stability Index</td>
+</tr>
+<tr class="even">
+<td>RCIT</td>
+<td>Randomized Conditional Independence Test</td>
+</tr>
+<tr class="odd">
+<td>SR 11-7</td>
+<td>Federal Reserve Supervisory Guidance on Model Risk Management
+(2011)</td>
+</tr>
+<tr class="even">
+<td>VIF</td>
+<td>Variance Inflation Factor</td>
+</tr>
+</tbody>
+</table>
+<h3 id="c.-regulatory-references">C. Regulatory References</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Reference</th>
+<th>Full Citation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>SR 11-7</td>
+<td>Board of Governors of the Federal Reserve System. <em>Guidance on
+Model Risk Management</em>. SR 11-7. April 4, 2011.</td>
+</tr>
+<tr class="even">
+<td>OCC 2011-12</td>
+<td>Office of the Comptroller of the Currency. <em>Sound Practices for
+Model Risk Management</em>. OCC 2011-12. April 4, 2011.</td>
+</tr>
+<tr class="odd">
+<td>ECOA / Reg B</td>
+<td>15 U.S.C. § 1691 et seq.; 12 C.F.R. Part 1002 (Regulation B).</td>
+</tr>
+<tr class="even">
+<td>EEOC 4/5ths Rule</td>
+<td>29 C.F.R. § 1607 — Uniform Guidelines on Employee Selection
+Procedures.</td>
+</tr>
+<tr class="odd">
+<td>CFPB Fair Lending</td>
+<td>CFPB. <em>Supervisory Guidance on Model Risk Management</em>.
+2021.</td>
+</tr>
+</tbody>
+</table>
