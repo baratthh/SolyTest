@@ -191,8 +191,8 @@ The following seven features serve as model inputs. All are derived from credit 
 
 | Attribute | Encoding | Protected Group | Reference Group |
 |---|---|---|---|
-| Gender | Binary (0/1) | Female (1) | Male (0) |
-| Race | Binary (0/1) | Minority (1) | Majority (0) |
+| Gender | Binary (0/1) | Female (0) | Male (1) |
+| Race | Binary (0/1) | Minority (0) | Majority (1) |
 
 ### 2.6 Model Outputs
 
